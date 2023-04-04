@@ -432,14 +432,25 @@ where
 		&mut self,
 		info: Option<&mut ContractInfo<T>>,
 	) -> Result<(), DispatchError> {
+		log::debug!(
+					target: "runtime::contracts",
+					"| enforce_limit |\n - own_contribution: {:?}\n",
+					self.own_contribution,
+				);
 		let deposit = self.own_contribution.update_contract(info);
 		let total_deposit = self.total_deposit.saturating_add(&deposit);
 		// We don't want to override a `Terminated` with a `Checked`.
 		if self.is_alive() {
-			self.own_contribution = Contribution::Checked(deposit);
+			self.own_contribution = Contribution::Checked(deposit.clone());
 		}
 		if let Deposit::Charge(amount) = total_deposit {
+			log::debug!(
+						target: "runtime::contracts",
+						"| enforce_limit | amount: {:?} | limit: {:?} | deposit : {:?} | total_deposit: {:?} | own_contribution: {:?}",
+						amount, self.limit, deposit, self.total_deposit, self.own_contribution,
+					);
 			if amount > self.limit {
+
 				return Err(<Error<T>>::StorageDepositLimitExhausted.into())
 			}
 		}
@@ -460,6 +471,16 @@ impl<T: Config> Ext<T> for ReservingExt {
 			.saturating_sub(min_leftover)
 			.saturating_sub(Pallet::<T>::min_balance());
 		let limit = limit.unwrap_or(max);
+		log::debug!(
+			target: "runtime::contracts",
+			"| check_limit |\n - limit: {:?}\n - max: {:?}\n - origin: {:?}\n - can withdraw: {:?}\n - balance: {:?}\n - free balance: {:?}",
+			limit,
+			max,
+			origin,
+			T::Currency::can_withdraw(origin, limit),
+			T::Currency::balance(origin),
+			T::Currency::free_balance(origin),
+		);
 		ensure!(
 			limit <= max &&
 				matches!(T::Currency::can_withdraw(origin, limit), WithdrawConsequence::Success),
