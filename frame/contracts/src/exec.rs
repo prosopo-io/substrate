@@ -311,7 +311,7 @@ pub trait Ext: sealing::Sealed {
 }
 
 /// Describes the different functions that can be exported by an [`Executable`].
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ExportedFunction {
 	/// The constructor function which is executed on deployment of a contract.
 	Constructor,
@@ -832,6 +832,12 @@ where
 	fn run(&mut self, executable: E, input_data: Vec<u8>) -> Result<ExecReturnValue, ExecError> {
 		let frame = self.top_frame();
 		let entry_point = frame.entry_point;
+		log::debug!(
+			target: "runtime::contracts",
+			"| run |\n - entry_point: {:?}\n - input_data: {:?}",
+			frame.entry_point,
+			input_data,
+		);
 		let delegated_code_hash =
 			if frame.delegate_caller.is_some() { Some(*executable.code_hash()) } else { None };
 		let do_transaction = || {
@@ -846,6 +852,11 @@ where
 				)?;
 			}
 
+			log::debug!(
+				target: "runtime::contracts",
+				"! debug - 1 !"
+			);
+
 			// Every non delegate call or instantiate also optionally transfers the balance.
 			self.initial_transfer()?;
 
@@ -859,12 +870,24 @@ where
 				return Ok(output)
 			}
 
+
+			log::debug!(
+				target: "runtime::contracts",
+				"! debug - 2 !",
+			);
+
 			// Storage limit is enforced as late as possible (when the last frame returns) so that
 			// the ordering of storage accesses does not matter.
 			if self.frames.is_empty() {
 				let frame = &mut self.first_frame;
 				frame.contract_info.load(&frame.account_id);
 				let contract = frame.contract_info.as_contract();
+				log::debug!(
+					target: "runtime::contracts",
+					"| contract |\n - contract.storage_byte_deposit: {:?}\n",
+					&contract.as_ref().unwrap().storage_byte_deposit,
+				);
+
 				frame.nested_storage.enforce_limit(contract)?;
 			}
 
@@ -876,6 +899,11 @@ where
 					if matches!(frame.contract_info, CachedContract::Terminated) {
 						return Err(Error::<T>::TerminatedInConstructor.into())
 					}
+
+					log::debug!(
+						target: "runtime::contracts",
+						"! debug - 3 !"
+					);
 
 					// Deposit an instantiation event.
 					Contracts::<T>::deposit_event(
