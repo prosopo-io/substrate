@@ -436,7 +436,7 @@ where
 		if let Deposit::Charge(amount) = total_deposit {
 			log::debug!(
 						target: "runtime::contracts",
-						"| enforce_limit | amount: {:?} | limit: {:?} | deposit : {:?} | total_deposit: {:?} | own_contribution: {:?}",
+						"| enforce_limit |\namount: {:?}\nlimit: {:?}\ndeposit : {:?}\ntotal_deposit: {:?}\nown_contribution: {:?}",
 						amount, self.limit, deposit, self.total_deposit, self.own_contribution,
 					);
 			if amount > self.limit {
